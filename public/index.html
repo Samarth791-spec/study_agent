@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Study Planner Agent</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#1d2433;--muted:#6b7385;--accent:#4f46e5;--line:#e5e8f0;--warn:#b45309}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1420;--card:#192032;--text:#e8ecf5;--muted:#9aa4ba;--accent:#8b87ff;--line:#2a3350;--warn:#fbbf24}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+header{text-align:center;padding:2rem 1rem 0}header h1{margin:0}header p{color:var(--muted)}
+main{max-width:760px;margin:1rem auto;padding:0 1rem 3rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.2rem;margin-bottom:1rem}
+label{display:block;font-size:.85rem;color:var(--muted)}
+input,select{width:100%;padding:.5rem;margin-top:.2rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem}
+.grid{display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.6rem}
+.top{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem}
+button{padding:.6rem 1rem;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:1rem;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+button.x{background:transparent;color:var(--muted);border:1px solid var(--line);padding:.5rem .7rem}
+.actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.5rem}.actions .main{flex:1}
+.error{color:#dc2626;font-weight:600}.muted{color:var(--muted);font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:.4rem .3rem;border-bottom:1px solid var(--line)}
+.warn{color:var(--warn);font-weight:600}
+.chip{display:inline-block;padding:.1rem .6rem;border-radius:99px;color:#fff;font-size:.85rem;font-weight:600}
+.block{display:flex;gap:.8rem;padding:.55rem 0;border-bottom:1px solid var(--line)}
+.block:last-child{border:0}.mins{min-width:62px;font-weight:700}
+.block p{margin:.2rem 0 0;color:var(--muted);font-size:.88rem}
+.exam{color:#dc2626;font-weight:700}
+ul{margin:.3rem 0;padding-left:1.2rem}
+@media(max-width:620px){.grid{grid-template-columns:1fr 1fr}.top{grid-template-columns:1fr}}
+@media print{form,header p,.actions{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<header><h1>📚 Smart Study Planner Agent</h1>
+<p>Add your subjects and exam dates. The agent decides what to study each day. No sign-up, no API.</p></header>
+<main>
+<form id="form" class="card">
+  <div class="top">
+    <label>Study hours per day<input id="hours" type="number" min="0.5" max="12" step="0.5" value="3"></label>
+    <label>Start date<input id="start" type="date"></label>
+    <label>Weekly rest day<select id="rest"><option value="none">None</option><option value="6">Sunday</option><option value="5">Saturday</option><option value="0">Monday</option></select></label>
+  </div>
+  <div id="rows"></div>
+  <div class="actions">
+    <button type="button" class="ghost" id="add">+ Add subject</button>
+    <button type="button" class="ghost" id="example">Load example</button>
+    <button type="submit" class="main">Build my study plan</button>
+  </div>
+  <p class="muted">Difficulty: 1 = easy, 5 = very hard. Confidence: 1 = I know nothing, 5 = I know it well.</p>
+</form>
+<p id="error" class="error"></p>
+<div id="result"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hue = (i) => `hsl(${(i * 67 + 230) % 360} 55% 42%)`;
+const iso = (d) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
+const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+const opts = (sel) => [1,2,3,4,5].map(n => `<option ${n === sel ? "selected" : ""}>${n}</option>`).join("");
+
+function addRow(name = "", exam = plusDays(14), diff = 3, conf = 3) {
+  const row = document.createElement("div");
+  row.className = "grid";
+  row.innerHTML = `
+    <label>Subject<input class="name" maxlength="40" value="${esc(name)}" placeholder="Maths"></label>
+    <label>Exam date<input class="exam" type="date" value="${exam}"></label>
+    <label>Difficulty<select class="diff">${opts(diff)}</select></label>
+    <label>Confidence<select class="conf">${opts(conf)}</select></label>
+    <button type="button" class="x" title="Remove">✕</button>`;
+  row.querySelector(".x").onclick = () => row.remove();
+  $("rows").appendChild(row);
+}
+
+$("start").value = plusDays(0);
+addRow();
+$("add").onclick = () => addRow();
+$("example").onclick = () => {
+  $("rows").innerHTML = "";
+  addRow("Maths", plusDays(12), 5, 2);
+  addRow("Physics", plusDays(16), 4, 3);
+  addRow("English", plusDays(9), 2, 4);
+  addRow("History", plusDays(20), 3, 2);
+};
+
+$("form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("error").textContent = "";
+  const subjects = [...document.querySelectorAll("#rows .grid")].map(r => ({
+    name: r.querySelector(".name").value,
+    exam_date: r.querySelector(".exam").value,
+    difficulty: +r.querySelector(".diff").value,
+    confidence: +r.querySelector(".conf").value,
+  }));
+  try {
+    const res = await fetch("/api/plan", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({subjects, hours_per_day: +$("hours").value,
+                            start_date: $("start").value, rest_day: $("rest").value}),
+    });
+    const data = await res.json();
+    if (!res.ok) { $("error").textContent = data.error; $("result").innerHTML = ""; return; }
+    render(data);
+  } catch (err) {
+    $("error").textContent = "Could not reach the planner. Please try again.";
+  }
+};
+
+function render(p) {
+  const rows = p.summary.map(s => `<tr>
+    <td><span class="chip" style="background:${hue(s.subject_id)}">${esc(s.subject)}</span></td>
+    <td>${s.exam}</td><td>${s.planned_hours} h</td><td>${s.recommended_hours} h</td>
+    <td>${s.enough ? "✅ Good" : '<span class="warn">⚠ Short</span>'}</td></tr>`).join("");
+  const advice = p.advice.map(a => `<li>${esc(a)}</li>`).join("");
+  const days = p.days.map((d, i) => {
+    let body;
+    if (d.rest) body = '<p class="muted">😴 Rest day. Recharge.</p>';
+    else if (!d.blocks.length) body = '<p class="muted">No study scheduled.</p>';
+    else body = d.blocks.map(b => `<div class="block">
+        <div class="mins">${b.minutes} min</div>
+        <div><span class="chip" style="background:${hue(b.subject_id)}">${esc(b.subject)}</span>
+        <b>${esc(b.mode)}</b> <span class="muted">· exam in ${b.exam_in_days} day(s)</span>
+        <p>${esc(b.tip)}</p></div></div>`).join("");
+    const exams = d.exams.length ? ` <span class="exam">📝 Exam: ${d.exams.map(esc).join(", ")}</span>` : "";
+    return `<section class="card"><h3>Day ${i + 1} · ${d.weekday} <span class="muted">${d.date}</span>${exams}</h3>${body}</section>`;
+  }).join("");
+  $("result").innerHTML = `
+    <section class="card"><h2>Your plan</h2>
+    <table><tr><th>Subject</th><th>Exam</th><th>Planned</th><th>Suggested</th><th></th></tr>${rows}</table>
+    <ul>${advice}</ul>
+    <div class="actions"><button class="ghost" onclick="window.print()">Print / Save as PDF</button></div></section>${days}`;
+  $("result").scrollIntoView({behavior: "smooth"});
+}
+</script>
+</body>
+</html>

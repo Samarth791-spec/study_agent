@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Study Planner website",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/local_server.py",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Open http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Run tests",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_tests.py",
+      "console": "integratedTerminal"
+    }
+  ]
+}
